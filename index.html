@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
   <!--
     Página de clientas — App de reservas (Desarrollado por Bulab)
@@ -290,22 +289,28 @@
   // ============================================================
   // Llamadas al servidor (devuelven promesas)
   // ============================================================
+  // ------------------------------------------------------------
+  // URL DEL SCRIPT DEL SALÓN. Es el ÚNICO lugar donde se cambia.
+  // Es la URL que termina en /exec de la implementación "Cualquiera".
+  // ------------------------------------------------------------
+  var API_URL = 'PEGAR_AQUI_LA_URL_DEL_SCRIPT_TERMINA_EN_EXEC';
+
   function llamar(funcion) {
     var args = Array.prototype.slice.call(arguments, 1);
-    return new Promise(function (resolver, rechazar) {
-      var runner = google.script.run
-        .withSuccessHandler(function (r) {
-          if (r && r.ok) resolver(r.datos);
-          else {
-            var e = new Error((r && r.mensaje) || 'Ocurrió un error. Intenta de nuevo.');
-            e.codigo = r && r.codigo;
-            rechazar(e);
-          }
-        })
-        .withFailureHandler(function () {
-          rechazar(new Error('No pudimos conectar. Revisa tu internet e intenta de nuevo.'));
-        });
-      runner[funcion].apply(runner, args);
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ f: funcion, a: args })
+    }).then(function (res) {
+      if (!res.ok) throw new Error('No pudimos conectar. Revisa tu internet e intenta de nuevo.');
+      return res.json();
+    }).then(function (r) {
+      if (r && r.ok) return r.datos;
+      var e = new Error((r && r.mensaje) || 'Ocurrió un error. Intenta de nuevo.');
+      e.codigo = r && r.codigo;
+      throw e;
+    }, function () {
+      throw new Error('No pudimos conectar. Revisa tu internet e intenta de nuevo.');
     });
   }
 
