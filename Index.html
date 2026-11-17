@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <!--
+    Página de clientas — App de reservas (Desarrollado por Bulab)
+    Fase 1: reservar, cancelar y pestaña de galería (vacía por ahora).
+    Todo el contenido dinámico se inserta con textContent (nunca innerHTML)
+    para evitar inyección de código.
+  -->
+  <style>
+    :root {
+      --fondo: #ffffff;
+      --acento: #b76e79;
+      --texto: #1a1a1a;
+      --sobre-acento: #000000;   /* color del texto encima del acento (se calcula) */
+      --tarjeta: rgba(255, 255, 255, 0.85);
+      --borde: rgba(0, 0, 0, 0.12);
+      --suave: rgba(0, 0, 0, 0.6);
+      --error: #b00020;
+      --radio: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .contenedor { width: 100%; max-width: 520px; margin: 0 auto; padding: 0 16px; }
+
+    header { text-align: center; padding: 20px 16px 8px; }
+    header img { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; display: block; margin: 0 auto 8px; }
+    header h1 { margin: 0; font-size: 1.6rem; font-weight: 600; }
+
+    nav { display: flex; gap: 8px; justify-content: center; margin: 12px 0 4px; }
+    nav button {
+      flex: 1; max-width: 180px; padding: 10px; border-radius: 999px;
+      border: 1.5px solid var(--acento); background: transparent; color: var(--texto);
+      font-size: 1rem; cursor: pointer;
+    }
+    nav button[aria-selected="true"] { background: var(--acento); color: var(--sobre-acento); font-weight: 600; }
+
+    main { flex: 1; padding-bottom: 24px; }
+    h2 { font-size: 1.15rem; margin: 20px 0 4px; }
+    .ayuda { color: var(--suave); margin: 0 0 12px; font-size: 0.95rem; }
+
+    .tarjeta {
+      background: var(--tarjeta); border: 1px solid var(--borde);
+      border-radius: var(--radio); padding: 14px;
+    }
+
+    /* Lista de servicios */
+    .servicio {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--tarjeta); border: 1.5px solid var(--borde);
+      border-radius: var(--radio); padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+    }
+    .servicio input { width: 22px; height: 22px; accent-color: var(--acento); flex-shrink: 0; }
+    .servicio .info { flex: 1; }
+    .servicio .nombre { font-weight: 600; display: block; }
+    .servicio .detalle { color: var(--suave); font-size: 0.9rem; }
+    .servicio .precio { font-weight: 600; white-space: nowrap; }
+    .servicio.elegido { border-color: var(--acento); }
+
+    /* Barra de total */
+    .barra {
+      position: sticky; bottom: 0; background: var(--fondo);
+      padding: 12px 0 14px; border-top: 1px solid var(--borde); margin-top: 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .barra .total { flex: 1; font-size: 0.95rem; }
+    .barra .total strong { display: block; font-size: 1.05rem; }
+
+    /* Botones */
+    .btn {
+      appearance: none; border: none; border-radius: 999px; padding: 12px 22px;
+      background: var(--acento); color: var(--sobre-acento); font-size: 1rem; font-weight: 600;
+      cursor: pointer; min-height: 46px;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.secundario { background: transparent; color: var(--texto); border: 1.5px solid var(--borde); }
+    .btn.ancho { width: 100%; }
+    .enlace {
+      background: none; border: none; color: var(--texto); text-decoration: underline;
+      font-size: 0.95rem; cursor: pointer; padding: 8px 0;
+    }
+    button:focus-visible, input:focus-visible, label:focus-within {
+      outline: 3px solid var(--acento); outline-offset: 2px;
+    }
+
+    /* Fechas y horas */
+    .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+    .chip {
+      border: 1.5px solid var(--borde); background: var(--tarjeta); color: var(--texto);
+      border-radius: 12px; padding: 10px 6px; font-size: 0.95rem; cursor: pointer; text-align: center;
+      min-height: 46px;
+    }
+    .chip .chico { display: block; font-size: 0.8rem; color: var(--suave); text-transform: capitalize; }
+    .chip:hover { border-color: var(--acento); }
+
+    /* Formularios */
+    label.campo { display: block; font-weight: 600; margin: 14px 0 6px; }
+    input[type="text"], input[type="tel"] {
+      width: 100%; padding: 12px; font-size: 1rem; border-radius: 10px;
+      border: 1.5px solid var(--borde); background: #fff; color: #1a1a1a;
+    }
+    .error { color: var(--error); font-size: 0.92rem; margin: 6px 0 0; min-height: 1em; }
+    .aviso {
+      background: var(--tarjeta); border: 1.5px dashed var(--acento); border-radius: var(--radio);
+      padding: 16px; text-align: center; margin: 20px 0;
+    }
+    .resumen { margin: 0; padding: 0; list-style: none; }
+    .resumen.tarjeta { padding: 4px 14px; }
+    .resumen li { padding: 6px 0; border-bottom: 1px solid var(--borde); display: flex; justify-content: space-between; gap: 12px; }
+    .resumen li:last-child { border-bottom: none; }
+    .resumen span:first-child { color: var(--suave); }
+    .resumen span:last-child { text-align: right; font-weight: 600; }
+    .codigo {
+      font-size: 2rem; letter-spacing: 0.25em; font-weight: 700; text-align: center;
+      padding: 12px; margin: 8px 0 16px; border: 2px solid var(--acento); border-radius: var(--radio);
+      background: var(--tarjeta); font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .estado-pendiente { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--acento); color: var(--sobre-acento); font-size: 0.85rem; font-weight: 600; }
+    .acciones { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .cargando { text-align: center; padding: 28px 0; color: var(--suave); }
+    .vacio { text-align: center; color: var(--suave); padding: 32px 8px; }
+
+    /* Galería */
+    .filtros { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 10px; }
+    .filtros button {
+      flex-shrink: 0; border: 1.5px solid var(--acento); background: transparent; color: var(--texto);
+      border-radius: 999px; padding: 7px 14px; font-size: .9rem; cursor: pointer;
+    }
+    .filtros button[aria-pressed="true"] { background: var(--acento); color: var(--sobre-acento); font-weight: 600; }
+    .galeria { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
+    @media (min-width: 480px) { .galeria { grid-template-columns: repeat(3, 1fr); } }
+    .galeria figure { margin: 0; background: var(--tarjeta); border-radius: 12px; overflow: hidden; }
+    .galeria img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: rgba(0,0,0,.05); }
+    .galeria figcaption { font-size: .85rem; padding: 6px 8px; }
+    .galeria .vacio, .galeria .cargando { grid-column: 1 / -1; }
+
+    footer { text-align: center; font-size: 0.8rem; color: var(--suave); padding: 16px; }
+    [hidden] { display: none !important; }
+    .solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  </style>
+</head>
+<body>
+  <header>
+    <img id="logo" alt="" hidden>
+    <h1 id="nombre-salon">Cargando…</h1>
+  </header>
+
+  <div class="contenedor">
+    <nav role="tablist" aria-label="Secciones">
+      <button type="button" role="tab" id="tab-reservar" aria-selected="true" aria-controls="vista-reservar">Reservar</button>
+      <button type="button" role="tab" id="tab-galeria" aria-selected="false" aria-controls="vista-galeria">Galería</button>
+    </nav>
+  </div>
+
+  <main class="contenedor" id="principal">
+    <p class="cargando" id="cargando-inicial" role="status">Cargando…</p>
+
+    <!-- ===================== RESERVAR ===================== -->
+    <section id="vista-reservar" role="tabpanel" aria-labelledby="tab-reservar" hidden>
+      <div id="aviso-reservas" class="aviso" role="status" hidden></div>
+
+      <!-- Paso 1: servicios -->
+      <div id="paso-servicios" hidden>
+        <h2 tabindex="-1">1. Elige tus servicios</h2>
+        <p class="ayuda">Puedes elegir más de uno.</p>
+        <div id="lista-servicios"></div>
+        <div class="barra">
+          <div class="total" aria-live="polite"><span id="total-texto">Ningún servicio elegido</span><strong id="total-precio"></strong></div>
+          <button type="button" class="btn" id="btn-a-fecha" disabled>Continuar</button>
+        </div>
+      </div>
+
+      <!-- Paso 2: fecha -->
+      <div id="paso-fecha" hidden>
+        <h2 tabindex="-1">2. Elige el día</h2>
+        <p class="ayuda" id="ayuda-fecha"></p>
+        <div id="lista-fechas" class="rejilla"></div>
+        <div class="acciones"><button type="button" class="btn secundario" data-volver="paso-servicios">Atrás</button></div>
+      </div>
+
+      <!-- Paso 3: hora -->
+      <div id="paso-hora" hidden>
+        <h2 tabindex="-1">3. Elige la hora</h2>
+        <p class="ayuda" id="ayuda-hora"></p>
+        <div id="lista-horas" class="rejilla"></div>
+        <div class="acciones"><button type="button" class="btn secundario" data-volver="paso-fecha">Atrás</button></div>
+      </div>
+
+      <!-- Paso 4: datos -->
+      <form id="paso-datos" novalidate hidden>
+        <h2 tabindex="-1">4. Tus datos</h2>
+        <ul class="resumen tarjeta" id="resumen-previo"></ul>
+        <label class="campo" for="campo-nombre">Nombre</label>
+        <input type="text" id="campo-nombre" autocomplete="name" maxlength="60" required>
+        <p class="error" id="error-nombre" aria-live="polite"></p>
+        <label class="campo" for="campo-telefono">Teléfono (8 dígitos)</label>
+        <input type="tel" id="campo-telefono" autocomplete="tel-national" inputmode="numeric" maxlength="9" placeholder="8888 8888" required>
+        <p class="error" id="error-telefono" aria-live="polite"></p>
+        <p class="error" id="error-reserva" role="alert"></p>
+        <div class="acciones">
+          <button type="button" class="btn secundario" data-volver="paso-hora">Atrás</button>
+          <button type="submit" class="btn" id="btn-reservar" style="flex:1">Reservar</button>
+        </div>
+      </form>
+
+      <!-- Paso 5: confirmación -->
+      <div id="paso-listo" hidden>
+        <h2 tabindex="-1">¡Listo! Recibimos tu reserva</h2>
+        <p class="ayuda">Guarda este código. Lo necesitas para cancelar.</p>
+        <div class="codigo" id="codigo-cita" aria-label="Código de cita"></div>
+        <ul class="resumen tarjeta" id="resumen-final"></ul>
+        <p style="margin-top:16px"><span class="estado-pendiente">Pendiente de confirmación</span></p>
+        <p>El salón te va a confirmar la cita por WhatsApp.</p>
+        <button type="button" class="btn ancho" id="btn-otra">Hacer otra reserva</button>
+      </div>
+
+      <p style="text-align:center"><button type="button" class="enlace" id="btn-ir-cancelar">¿Necesitas cancelar una cita?</button></p>
+    </section>
+
+    <!-- ===================== CANCELAR ===================== -->
+    <section id="vista-cancelar" hidden>
+      <form id="form-cancelar" novalidate>
+        <h2 tabindex="-1">Cancelar una cita</h2>
+        <p class="ayuda">Escribe el código de tu cita y el teléfono con el que reservaste.</p>
+        <label class="campo" for="cancelar-codigo">Código de cita</label>
+        <input type="text" id="cancelar-codigo" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:0.15em">
+        <label class="campo" for="cancelar-telefono">Teléfono</label>
+        <input type="tel" id="cancelar-telefono" inputmode="numeric" maxlength="9" placeholder="8888 8888">
+        <p class="error" id="error-cancelar" role="alert"></p>
+        <div id="confirmar-cancelacion" class="aviso" hidden>
+          <p style="margin-top:0">¿Seguro que quieres cancelar tu cita? Tu espacio quedará libre para otra persona.</p>
+          <div class="acciones" style="justify-content:center">
+            <button type="button" class="btn secundario" id="btn-no-cancelar">No, volver</button>
+            <button type="button" class="btn" id="btn-si-cancelar">Sí, cancelar</button>
+          </div>
+        </div>
+        <div class="acciones" id="acciones-cancelar">
+          <button type="button" class="btn secundario" id="btn-volver-reservar">Volver</button>
+          <button type="submit" class="btn" style="flex:1">Cancelar cita</button>
+        </div>
+      </form>
+      <div id="cancelacion-lista" hidden>
+        <h2 tabindex="-1">Tu cita fue cancelada</h2>
+        <ul class="resumen tarjeta" id="resumen-cancelada"></ul>
+        <p>Gracias por avisar. Si quieres, puedes reservar otro día.</p>
+        <button type="button" class="btn ancho" id="btn-reservar-otra">Reservar de nuevo</button>
+      </div>
+    </section>
+
+    <!-- ===================== GALERÍA ===================== -->
+    <section id="vista-galeria" role="tabpanel" aria-labelledby="tab-galeria" hidden>
+      <div id="galeria-filtros" class="filtros" role="group" aria-label="Filtrar por categoría"></div>
+      <div id="galeria-fotos" class="galeria"><p class="cargando">Cargando fotos…</p></div>
+    </section>
+  </main>
+
+  <footer id="pie"></footer>
+
+<script>
+  // ============================================================
+  // Estado de la página
+  // ============================================================
+  var estado = {
+    datos: null,          // datos del salón y servicios
+    elegidos: [],         // ids de servicios en el orden en que se eligieron
+    fecha: null,
+    hora: null,
+    enviando: false
+  };
+
+  var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  var DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+               'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  function $(id) { return document.getElementById(id); }
+
+  // ============================================================
+  // Llamadas al servidor (devuelven promesas)
+  // ============================================================
+  function llamar(funcion) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolver, rechazar) {
+      var runner = google.script.run
+        .withSuccessHandler(function (r) {
+          if (r && r.ok) resolver(r.datos);
+          else {
+            var e = new Error((r && r.mensaje) || 'Ocurrió un error. Intenta de nuevo.');
+            e.codigo = r && r.codigo;
+            rechazar(e);
+          }
+        })
+        .withFailureHandler(function () {
+          rechazar(new Error('No pudimos conectar. Revisa tu internet e intenta de nuevo.'));
+        });
+      runner[funcion].apply(runner, args);
+    });
+  }
+
+  // ============================================================
+  // Formatos
+  // ============================================================
+  function colones(n) {
+    return '₡' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  function duracionTexto(min) {
+    var h = Math.floor(min / 60), m = min % 60;
+    if (h && m) return h + ' h ' + m + ' min';
+    if (h) return h + ' h';
+    return m + ' min';
+  }
+  function hora12(hhmm) {
+    var p = hhmm.split(':'), h = Number(p[0]);
+    var sufijo = h < 12 ? 'a. m.' : 'p. m.';
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + p[1] + ' ' + sufijo;
+  }
+  function partesFecha(f) {
+    var p = f.split('-').map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return { semana: d.getUTCDay(), dia: p[2], mes: p[1] - 1 };
+  }
+  function fechaLarga(f) {
+    var x = partesFecha(f);
+    var t = DIAS[x.semana] + ' ' + x.dia + ' de ' + MESES[x.mes];
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  // Elige texto negro o blanco según qué contraste más con el color de acento.
+  function colorSobre(hex) {
+    var h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var rgb = [0, 2, 4].map(function (i) {
+      var c = parseInt(h.substr(i, 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    var L = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? '#000000' : '#ffffff';
+  }
+
+  // Crea elementos de forma segura (solo textContent).
+  function el(tag, props, hijos) {
+    var n = document.createElement(tag);
+    if (props) Object.keys(props).forEach(function (k) {
+      if (k === 'texto') n.textContent = props[k];
+      else if (k === 'clase') n.className = props[k];
+      else n.setAttribute(k, props[k]);
+    });
+    (hijos || []).forEach(function (h) { if (h) n.appendChild(h); });
+    return n;
+  }
+  function vaciar(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+
+  function filaResumen(etiqueta, valor) {
+    return el('li', null, [el('span', { texto: etiqueta }), el('span', { texto: valor })]);
+  }
+
+  // ============================================================
+  // Navegación entre pasos y pestañas
+  // ============================================================
+  var PASOS = ['paso-servicios', 'paso-fecha', 'paso-hora', 'paso-datos', 'paso-listo'];
+
+  function mostrarPaso(id) {
+    PASOS.forEach(function (p) { $(p).hidden = (p !== id); });
+    var titulo = $(id).querySelector('h2');
+    if (titulo) titulo.focus();
+    window.scrollTo(0, 0);
+  }
+
+  function mostrarVista(vista) {
+    $('vista-reservar').hidden = vista !== 'reservar';
+    $('vista-cancelar').hidden = vista !== 'cancelar';
+    $('vista-galeria').hidden = vista !== 'galeria';
+    $('tab-reservar').setAttribute('aria-selected', String(vista === 'reservar' || vista === 'cancelar'));
+    $('tab-galeria').setAttribute('aria-selected', String(vista === 'galeria'));
+  }
+
+  $('tab-reservar').addEventListener('click', function () { mostrarVista('reservar'); });
+  $('tab-galeria').addEventListener('click', function () { mostrarVista('galeria'); cargarGaleria(); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-volver]'), function (b) {
+    b.addEventListener('click', function () { mostrarPaso(b.getAttribute('data-volver')); });
+  });
+
+  // ============================================================
+  // Inicio
+  // ============================================================
+  function iniciar() {
+    llamar('obtenerDatosInicio').then(function (datos) {
+      estado.datos = datos;
+      aplicarMarca(datos.salon);
+      $('cargando-inicial').hidden = true;
+      mostrarVista('reservar');
+
+      if (!datos.reservasHabilitadas) {
+        avisoReservas('Reservas temporalmente no disponibles. Comuníquese con el salón por WhatsApp.');
+      } else if (!datos.horarioConfigurado) {
+        avisoReservas('Este salón todavía no tiene horario disponible para reservas en línea.');
+      } else if (datos.servicios.length === 0) {
+        avisoReservas('Este salón todavía no tiene servicios disponibles para reservar.');
+      } else {
+        pintarServicios();
+        mostrarPaso('paso-servicios');
+      }
+    }).catch(function (e) {
+      $('cargando-inicial').textContent = e.message;
+    });
+  }
+
+  function avisoReservas(texto) {
+    $('aviso-reservas').textContent = texto;
+    $('aviso-reservas').hidden = false;
+    PASOS.forEach(function (p) { $(p).hidden = true; });
+  }
+
+  function aplicarMarca(salon) {
+    var raiz = document.documentElement.style;
+    raiz.setProperty('--fondo', salon.colores.fondo);
+    raiz.setProperty('--acento', salon.colores.acento);
+    raiz.setProperty('--texto', salon.colores.texto);
+    raiz.setProperty('--sobre-acento', colorSobre(salon.colores.acento));
+    $('nombre-salon').textContent = salon.nombre;
+    if (salon.logo) {
+      var img = $('logo');
+      img.alt = 'Logo de ' + salon.nombre;
+      img.onerror = function () { img.hidden = true; };
+      img.src = salon.logo;
+      img.hidden = false;
+    }
+    vaciar($('pie'));
+    if (salon.mostrarCreditos) $('pie').textContent = 'Desarrollado por Bulab';
+  }
+
+  // ============================================================
+  // Paso 1: servicios
+  // ============================================================
+  function pintarServicios() {
+    var lista = $('lista-servicios');
+    vaciar(lista);
+    estado.datos.servicios.forEach(function (s) {
+      var casilla = el('input', { type: 'checkbox', value: s.id, id: 'srv-' + s.id });
+      var tarjeta = el('label', { clase: 'servicio', 'for': 'srv-' + s.id }, [
+        casilla,
+        el('span', { clase: 'info' }, [
+          el('span', { clase: 'nombre', texto: s.nombre }),
+          el('span', { clase: 'detalle', texto: duracionTexto(s.duracion) })
+        ]),
+        el('span', { clase: 'precio', texto: colones(s.precio) })
+      ]);
+      casilla.addEventListener('change', function () {
+        var i = estado.elegidos.indexOf(s.id);
+        if (casilla.checked && i === -1) {
+          if (estado.elegidos.length >= estado.datos.maxServicios) {
+            casilla.checked = false;
+            alertaTotal('Máximo ' + estado.datos.maxServicios + ' servicios por cita.');
+            return;
+          }
+          estado.elegidos.push(s.id);
+        }
+        if (!casilla.checked && i !== -1) estado.elegidos.splice(i, 1);
+        tarjeta.classList.toggle('elegido', casilla.checked);
+        actualizarTotal();
+      });
+      lista.appendChild(tarjeta);
+    });
+    actualizarTotal();
+  }
+
+  function serviciosElegidos() {
+    return estado.elegidos.map(function (id) {
+      return estado.datos.servicios.filter(function (s) { return s.id === id; })[0];
+    }).filter(Boolean);
+  }
+
+  function totales() {
+    var lista = serviciosElegidos();
+    return {
+      duracion: lista.reduce(function (t, s) { return t + s.duracion; }, 0),
+      precio: lista.reduce(function (t, s) { return t + s.precio; }, 0),
+      lista: lista
+    };
+  }
+
+  function actualizarTotal() {
+    var t = totales();
+    $('btn-a-fecha').disabled = t.lista.length === 0;
+    if (t.lista.length === 0) {
+      $('total-texto').textContent = 'Ningún servicio elegido';
+      $('total-precio').textContent = '';
+    } else {
+      $('total-texto').textContent = 'Total · ' + duracionTexto(t.duracion);
+      $('total-precio').textContent = colones(t.precio);
+    }
+  }
+
+  function alertaTotal(texto) {
+    $('total-texto').textContent = texto;
+    setTimeout(actualizarTotal, 2500);
+  }
+
+  $('btn-a-fecha').addEventListener('click', cargarFechas);
+
+  // ============================================================
+  // Paso 2: fecha
+  // ============================================================
+  function cargarFechas() {
+    var lista = $('lista-fechas');
+    vaciar(lista);
+    $('ayuda-fecha').textContent = 'Buscando días disponibles…';
+    mostrarPaso('paso-fecha');
+
+    llamar('obtenerDiasDisponibles', estado.elegidos).then(function (dias) {
+      if (dias.length === 0) {
+        $('ayuda-fecha').textContent = 'No hay espacios en los próximos 30 días para esta combinación. Prueba con menos servicios o comunícate con el salón.';
+        return;
+      }
+      $('ayuda-fecha').textContent = 'Solo se muestran días con espacio para ' + duracionTexto(totales().duracion) + '.';
+      dias.forEach(function (f) {
+        var x = partesFecha(f);
+        var b = el('button', { type: 'button', clase: 'chip', 'aria-label': fechaLarga(f) }, [
+          el('span', { clase: 'chico', texto: DIAS_CORTOS[x.semana] }),
+          document.createTextNode(x.dia + ' ' + MESES[x.mes].slice(0, 3))
+        ]);
+        b.addEventListener('click', function () { estado.fecha = f; cargarHoras(); });
+        lista.appendChild(b);
+      });
+    }).catch(function (e) { $('ayuda-fecha').textContent = e.message; });
+  }
+
+  // ============================================================
+  // Paso 3: hora
+  // ============================================================
+  function cargarHoras() {
+    var lista = $('lista-horas');
+    vaciar(lista);
+    $('ayuda-hora').textContent = 'Buscando horas para el ' + fechaLarga(estado.fecha).toLowerCase() + '…';
+    mostrarPaso('paso-hora');
+
+    llamar('obtenerHorarios', estado.elegidos, estado.fecha).then(function (horas) {
+      if (horas.length === 0) {
+        $('ayuda-hora').textContent = 'Ya no quedan horas libres ese día. Elige otro día.';
+        return;
+      }
+      $('ayuda-hora').textContent = fechaLarga(estado.fecha) + '. Tu cita dura ' + duracionTexto(totales().duracion) + '.';
+      horas.forEach(function (h) {
+        var b = el('button', { type: 'button', clase: 'chip', texto: hora12(h) });
+        b.addEventListener('click', function () { estado.hora = h; prepararDatos(); });
+        lista.appendChild(b);
+      });
+    }).catch(function (e) { $('ayuda-hora').textContent = e.message; });
+  }
+
+  // ============================================================
+  // Paso 4: datos de la clienta
+  // ============================================================
+  function prepararDatos() {
+    var t = totales();
+    var r = $('resumen-previo');
+    vaciar(r);
+    r.appendChild(filaResumen('Servicios', t.lista.map(function (s) { return s.nombre; }).join(', ')));
+    r.appendChild(filaResumen('Día', fechaLarga(estado.fecha)));
+    r.appendChild(filaResumen('Hora', hora12(estado.hora)));
+    r.appendChild(filaResumen('Duración', duracionTexto(t.duracion)));
+    r.appendChild(filaResumen('Total', colones(t.precio)));
+    $('error-reserva').textContent = '';
+    mostrarPaso('paso-datos');
+  }
+
+  function soloDigitos(v) { return String(v || '').replace(/[\s\-]/g, ''); }
+
+  $('paso-datos').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (estado.enviando) return;
+
+    var nombre = $('campo-nombre').value.trim();
+    var telefono = soloDigitos($('campo-telefono').value);
+    var valido = true;
+    $('error-nombre').textContent = '';
+    $('error-telefono').textContent = '';
+    $('error-reserva').textContent = '';
+
+    if (nombre.length < 2) { $('error-nombre').textContent = 'Escribe tu nombre.'; valido = false; }
+    if (!/^\d{8}$/.test(telefono)) { $('error-telefono').textContent = 'El teléfono debe tener 8 dígitos.'; valido = false; }
+    if (!valido) return;
+
+    estado.enviando = true;
+    var boton = $('btn-reservar');
+    boton.disabled = true;
+    boton.textContent = 'Reservando…';
+
+    llamar('reservarCita', {
+      servicios: estado.elegidos, fecha: estado.fecha, hora: estado.hora,
+      nombre: nombre, telefono: telefono
+    }).then(function (cita) {
+      mostrarConfirmacion(cita);
+    }).catch(function (e) {
+      $('error-reserva').textContent = e.message;
+      if (e.codigo === 'NO_DISPONIBLE') {
+        // Alguien tomó ese horario: volver a mostrar las horas actualizadas.
+        setTimeout(cargarHoras, 1800);
+      }
+    }).then(function () {
+      estado.enviando = false;
+      boton.disabled = false;
+      boton.textContent = 'Reservar';
+    });
+  });
+
+  // ============================================================
+  // Paso 5: confirmación
+  // ============================================================
+  function mostrarConfirmacion(cita) {
+    $('codigo-cita').textContent = cita.codigo;
+    var r = $('resumen-final');
+    vaciar(r);
+    r.appendChild(filaResumen('Servicios', cita.servicios.join(', ')));
+    r.appendChild(filaResumen('Día', fechaLarga(cita.fecha)));
+    r.appendChild(filaResumen('Hora', hora12(cita.inicio) + ' a ' + hora12(cita.fin)));
+    r.appendChild(filaResumen('Total', colones(cita.precio)));
+    mostrarPaso('paso-listo');
+  }
+
+  function reiniciarReserva() {
+    estado.elegidos = [];
+    estado.fecha = null;
+    estado.hora = null;
+    $('campo-nombre').value = '';
+    $('campo-telefono').value = '';
+    pintarServicios();
+    mostrarVista('reservar');
+    if ($('aviso-reservas').hidden) mostrarPaso('paso-servicios');
+  }
+  $('btn-otra').addEventListener('click', reiniciarReserva);
+
+  // ============================================================
+  // Cancelar
+  // ============================================================
+  function abrirCancelar() {
+    $('form-cancelar').hidden = false;
+    $('cancelacion-lista').hidden = true;
+    $('confirmar-cancelacion').hidden = true;
+    $('acciones-cancelar').hidden = false;
+    $('error-cancelar').textContent = '';
+    mostrarVista('cancelar');
+    $('form-cancelar').querySelector('h2').focus();
+  }
+  $('btn-ir-cancelar').addEventListener('click', abrirCancelar);
+  $('btn-volver-reservar').addEventListener('click', function () { mostrarVista('reservar'); });
+  $('btn-reservar-otra').addEventListener('click', reiniciarReserva);
+
+  $('form-cancelar').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var codigo = $('cancelar-codigo').value.trim().toUpperCase();
+    var tel = soloDigitos($('cancelar-telefono').value);
+    $('error-cancelar').textContent = '';
+    if (codigo.length !== 6) { $('error-cancelar').textContent = 'El código tiene 6 caracteres.'; return; }
+    if (!/^\d{8}$/.test(tel)) { $('error-cancelar').textContent = 'El teléfono debe tener 8 dígitos.'; return; }
+    $('acciones-cancelar').hidden = true;
+    $('confirmar-cancelacion').hidden = false;
+    $('btn-si-cancelar').focus();
+  });
+
+  $('btn-no-cancelar').addEventListener('click', function () {
+    $('confirmar-cancelacion').hidden = true;
+    $('acciones-cancelar').hidden = false;
+  });
+
+  $('btn-si-cancelar').addEventListener('click', function () {
+    var boton = $('btn-si-cancelar');
+    boton.disabled = true;
+    boton.textContent = 'Cancelando…';
+    llamar('cancelarCita', {
+      codigo: $('cancelar-codigo').value.trim().toUpperCase(),
+      telefono: soloDigitos($('cancelar-telefono').value)
+    }).then(function (cita) {
+      var r = $('resumen-cancelada');
+      vaciar(r);
+      r.appendChild(filaResumen('Servicios', cita.servicios.join(', ')));
+      r.appendChild(filaResumen('Día', fechaLarga(cita.fecha)));
+      r.appendChild(filaResumen('Hora', hora12(cita.inicio)));
+      $('form-cancelar').hidden = true;
+      $('cancelacion-lista').hidden = false;
+      $('cancelar-codigo').value = '';
+      $('cancelar-telefono').value = '';
+      $('cancelacion-lista').querySelector('h2').focus();
+    }).catch(function (e) {
+      $('error-cancelar').textContent = e.message;
+      $('confirmar-cancelacion').hidden = true;
+      $('acciones-cancelar').hidden = false;
+    }).then(function () {
+      boton.disabled = false;
+      boton.textContent = 'Sí, cancelar';
+    });
+  });
+
+  // ============================================================
+  // Galería (se carga la primera vez que se abre la pestaña)
+  // ============================================================
+  var galeria = { fotos: null, categoria: 'Todas' };
+
+  function cargarGaleria() {
+    if (galeria.fotos) return;
+    llamar('obtenerGaleria').then(function (fotos) {
+      galeria.fotos = fotos;
+      pintarGaleria();
+    }).catch(function (e) {
+      var cont = $('galeria-fotos'); vaciar(cont);
+      cont.appendChild(el('p', { clase: 'vacio', texto: e.message }));
+    });
+  }
+
+  function pintarGaleria() {
+    var filtros = $('galeria-filtros'), cont = $('galeria-fotos');
+    vaciar(filtros); vaciar(cont);
+    var categorias = [];
+    galeria.fotos.forEach(function (f) { if (categorias.indexOf(f.categoria) === -1) categorias.push(f.categoria); });
+    if (categorias.length > 1) {
+      ['Todas'].concat(categorias).forEach(function (c) {
+        var b = el('button', { type: 'button', texto: c, 'aria-pressed': String(c === galeria.categoria) });
+        b.addEventListener('click', function () { galeria.categoria = c; pintarGaleria(); });
+        filtros.appendChild(b);
+      });
+    }
+    var visibles = galeria.fotos.filter(function (f) { return galeria.categoria === 'Todas' || f.categoria === galeria.categoria; });
+    if (!visibles.length) { cont.appendChild(el('p', { clase: 'vacio', texto: 'Aún no hay fotos en la galería.' })); return; }
+    visibles.forEach(function (f) {
+      var img = el('img', { src: f.url, alt: f.titulo || f.categoria, loading: 'lazy' });
+      img.onerror = function () { img.parentNode && (img.parentNode.hidden = true); };
+      cont.appendChild(el('figure', null, [img, f.titulo ? el('figcaption', { texto: f.titulo }) : null]));
+    });
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
