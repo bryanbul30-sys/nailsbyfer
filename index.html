@@ -6,6 +6,8 @@
   <title>Nails by Fer · Reservas</title>
   <meta name="theme-color" content="#b76e79">
   <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -138,6 +140,11 @@
     }
     .estado-pendiente { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--acento); color: var(--sobre-acento); font-size: 0.85rem; font-weight: 600; }
     .acciones { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .calendario { margin: 18px 0 8px; padding: 14px; border-radius: var(--radio); background: var(--tarjeta); border: 1px solid var(--acento); }
+    .calendario p { margin: 0 0 10px; }
+    .calendario .acciones { margin-top: 0; }
+    .calendario a.btn { flex: 1; text-align: center; text-decoration: none; display: inline-block; box-sizing: border-box; }
+    .nota { font-size: 0.85rem; color: var(--suave); margin: 8px 0 0; }
     .cargando { text-align: center; padding: 28px 0; color: var(--suave); }
     .vacio { text-align: center; color: var(--suave); padding: 32px 8px; }
 
@@ -227,45 +234,41 @@
       <!-- Paso 5: confirmación -->
       <div id="paso-listo" hidden>
         <h2 tabindex="-1">¡Listo! Recibimos tu reserva</h2>
-        <p class="ayuda">Guarda este código. Lo necesitas para cancelar.</p>
-        <div class="codigo" id="codigo-cita" aria-label="Código de cita"></div>
         <ul class="resumen tarjeta" id="resumen-final"></ul>
         <p style="margin-top:16px"><span class="estado-pendiente">Pendiente de confirmación</span></p>
-        <p>El salón te va a confirmar la cita por WhatsApp.</p>
+        <p>El salón te va a confirmar la cita por WhatsApp. En ese mensaje te llega un enlace para ver o cancelar tu cita.</p>
+        <div id="calendario-listo"></div>
+        <p><a id="enlace-mi-cita" href="#">Ver o cancelar mi cita</a></p>
         <button type="button" class="btn ancho" id="btn-otra">Hacer otra reserva</button>
       </div>
 
-      <p style="text-align:center"><button type="button" class="enlace" id="btn-ir-cancelar">¿Necesitas cancelar una cita?</button></p>
+      <p class="nota" style="text-align:center">¿Necesitas cancelar? Usa el enlace del mensaje de WhatsApp que te envió el salón.</p>
     </section>
 
-    <!-- ===================== CANCELAR ===================== -->
-    <section id="vista-cancelar" hidden>
-      <form id="form-cancelar" novalidate>
-        <h2 tabindex="-1">Cancelar una cita</h2>
-        <p class="ayuda">Escribe el código de tu cita y el teléfono con el que reservaste.</p>
-        <label class="campo" for="cancelar-codigo">Código de cita</label>
-        <input type="text" id="cancelar-codigo" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:0.15em">
-        <label class="campo" for="cancelar-telefono">Teléfono</label>
-        <input type="tel" id="cancelar-telefono" inputmode="numeric" maxlength="9" placeholder="8888 8888">
-        <p class="error" id="error-cancelar" role="alert"></p>
-        <div id="confirmar-cancelacion" class="aviso" hidden>
-          <p style="margin-top:0">¿Seguro que quieres cancelar tu cita? Tu espacio quedará libre para otra persona.</p>
-          <div class="acciones" style="justify-content:center">
-            <button type="button" class="btn secundario" id="btn-no-cancelar">No, volver</button>
-            <button type="button" class="btn" id="btn-si-cancelar">Sí, cancelar</button>
+    <!-- ===================== MI CITA (enlace personal) ===================== -->
+    <section id="vista-cita" hidden>
+      <p class="cargando" id="cita-cargando" role="status">Buscando tu cita…</p>
+      <p class="error" id="cita-error" role="alert"></p>
+      <div id="cita-detalle" hidden>
+        <h2 tabindex="-1" id="cita-titulo">Tu cita</h2>
+        <ul class="resumen tarjeta" id="cita-resumen"></ul>
+        <p style="margin-top:16px"><span class="estado-pendiente" id="cita-estado"></span></p>
+        <div id="calendario-cita"></div>
+        <div id="cita-cancelar-zona">
+          <p class="error" id="error-cancelar" role="alert"></p>
+          <div id="confirmar-cancelacion" class="aviso" hidden>
+            <p style="margin-top:0">¿Seguro que quieres cancelar tu cita? Tu espacio quedará libre para otra persona.</p>
+            <div class="acciones" style="justify-content:center">
+              <button type="button" class="btn secundario" id="btn-no-cancelar">No, volver</button>
+              <button type="button" class="btn" id="btn-si-cancelar">Sí, cancelar</button>
+            </div>
+          </div>
+          <div class="acciones" id="acciones-cancelar">
+            <button type="button" class="btn secundario ancho" id="btn-pedir-cancelar">Cancelar mi cita</button>
           </div>
         </div>
-        <div class="acciones" id="acciones-cancelar">
-          <button type="button" class="btn secundario" id="btn-volver-reservar">Volver</button>
-          <button type="submit" class="btn" style="flex:1">Cancelar cita</button>
-        </div>
-      </form>
-      <div id="cancelacion-lista" hidden>
-        <h2 tabindex="-1">Tu cita fue cancelada</h2>
-        <ul class="resumen tarjeta" id="resumen-cancelada"></ul>
-        <p>Gracias por avisar. Si quieres, puedes reservar otro día.</p>
-        <button type="button" class="btn ancho" id="btn-reservar-otra">Reservar de nuevo</button>
       </div>
+      <p style="text-align:center;margin-top:20px"><button type="button" class="enlace" id="btn-cita-reservar">Hacer una reserva nueva</button></p>
     </section>
 
     <!-- ===================== GALERÍA ===================== -->
@@ -396,13 +399,22 @@
 
   function mostrarVista(vista) {
     $('vista-reservar').hidden = vista !== 'reservar';
-    $('vista-cancelar').hidden = vista !== 'cancelar';
+    $('vista-cita').hidden = vista !== 'cita';
     $('vista-galeria').hidden = vista !== 'galeria';
-    $('tab-reservar').setAttribute('aria-selected', String(vista === 'reservar' || vista === 'cancelar'));
+    $('tab-reservar').setAttribute('aria-selected', String(vista === 'reservar'));
     $('tab-galeria').setAttribute('aria-selected', String(vista === 'galeria'));
   }
 
-  $('tab-reservar').addEventListener('click', function () { mostrarVista('reservar'); });
+  $('tab-reservar').addEventListener('click', function () {
+    if (!$('vista-cita').hidden) {
+      // Viene de "Mi cita": quitar el enlace de la dirección y mostrar el inicio.
+      history.replaceState(null, '', location.pathname);
+      mostrarVista('reservar');
+      if (estado.datos) pintarInicio(estado.datos);
+      return;
+    }
+    mostrarVista('reservar');
+  });
   $('tab-galeria').addEventListener('click', function () { mostrarVista('galeria'); cargarGaleria(); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-volver]'), function (b) {
     b.addEventListener('click', function () { mostrarPaso(b.getAttribute('data-volver')); });
@@ -411,25 +423,52 @@
   // ============================================================
   // Inicio
   // ============================================================
+  // Lo último que se cargó se guarda en el celular para mostrarlo al instante
+  // la próxima vez; mientras tanto se pide lo nuevo por detrás.
+  var CLAVE_CACHE = 'inicio_' + API_URL.slice(-12);
+  function leerCache() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_CACHE) || 'null'); } catch (e) { return null; }
+  }
+  function guardarCache(datos) {
+    try { localStorage.setItem(CLAVE_CACHE, JSON.stringify(datos)); } catch (e) {}
+  }
+
+  function pintarInicio(datos) {
+    estado.datos = datos;
+    aplicarMarca(datos.salon);
+    $('cargando-inicial').hidden = true;
+    if (!$('vista-cita').hidden) return;  // Está viendo su cita: no cambiar de vista.
+    mostrarVista('reservar');
+    $('aviso-reservas').hidden = true;
+    if (!datos.reservasHabilitadas) {
+      avisoReservas('Reservas temporalmente no disponibles. Comuníquese con el salón por WhatsApp.');
+    } else if (!datos.horarioConfigurado) {
+      avisoReservas('Este salón todavía no tiene horario disponible para reservas en línea.');
+    } else if (datos.servicios.length === 0) {
+      avisoReservas('Este salón todavía no tiene servicios disponibles para reservar.');
+    } else {
+      pintarServicios();
+      mostrarPaso('paso-servicios');
+    }
+  }
+
   function iniciar() {
+    var ref = new URLSearchParams(location.search).get('cita');
+    if (ref) abrirMiCita(ref);
+
+    var guardado = leerCache();
+    if (guardado) pintarInicio(guardado);
+
     llamar('obtenerDatosInicio').then(function (datos) {
+      guardarCache(datos);
+      if (!guardado) { pintarInicio(datos); return; }
+      // Si algo cambió y la clienta todavía no empezó a elegir, se actualiza.
+      var cambio = JSON.stringify(datos) !== JSON.stringify(guardado);
       estado.datos = datos;
       aplicarMarca(datos.salon);
-      $('cargando-inicial').hidden = true;
-      mostrarVista('reservar');
-
-      if (!datos.reservasHabilitadas) {
-        avisoReservas('Reservas temporalmente no disponibles. Comuníquese con el salón por WhatsApp.');
-      } else if (!datos.horarioConfigurado) {
-        avisoReservas('Este salón todavía no tiene horario disponible para reservas en línea.');
-      } else if (datos.servicios.length === 0) {
-        avisoReservas('Este salón todavía no tiene servicios disponibles para reservar.');
-      } else {
-        pintarServicios();
-        mostrarPaso('paso-servicios');
-      }
+      if (cambio && estado.elegidos.length === 0 && !$('paso-servicios').hidden) pintarInicio(datos);
     }).catch(function (e) {
-      $('cargando-inicial').textContent = e.message;
+      if (!guardado) $('cargando-inicial').textContent = e.message;
     });
   }
 
@@ -636,14 +675,48 @@
   // Paso 5: confirmación
   // ============================================================
   function mostrarConfirmacion(cita) {
-    $('codigo-cita').textContent = cita.codigo;
     var r = $('resumen-final');
     vaciar(r);
     r.appendChild(filaResumen('Servicios', cita.servicios.join(', ')));
     r.appendChild(filaResumen('Día', fechaLarga(cita.fecha)));
     r.appendChild(filaResumen('Hora', hora12(cita.inicio) + ' a ' + hora12(cita.fin)));
     r.appendChild(filaResumen('Total', colones(cita.precio)));
+    // Si el script todavía es la versión anterior, no hay enlace ni calendario.
+    if (cita.ref) {
+      pintarCalendario($('calendario-listo'), cita);
+      $('enlace-mi-cita').href = enlaceMiCita(cita.ref);
+      $('enlace-mi-cita').hidden = false;
+    } else {
+      vaciar($('calendario-listo'));
+      $('enlace-mi-cita').hidden = true;
+    }
     mostrarPaso('paso-listo');
+  }
+
+  // ============================================================
+  // Agregar al calendario de la clienta
+  // ============================================================
+  function enlaceMiCita(ref) {
+    return location.origin + location.pathname + '?cita=' + encodeURIComponent(ref);
+  }
+
+  function pintarCalendario(cont, cita) {
+    vaciar(cont);
+    var titulo = 'Cita en ' + (cita.salon || $('nombre-salon').textContent);
+    var detalles = cita.servicios.join(', ') + '\nVer o cancelar: ' + enlaceMiCita(cita.ref);
+    var google = 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+      '&text=' + encodeURIComponent(titulo) +
+      '&dates=' + cita.inicioUtc + '/' + cita.finUtc +
+      '&details=' + encodeURIComponent(detalles);
+    var ics = API_URL + '?ics=' + encodeURIComponent(cita.ref);
+    cont.appendChild(el('div', { clase: 'calendario' }, [
+      el('p', null, [el('strong', { texto: 'Guárdala en tu calendario para que no se te olvide' })]),
+      el('div', { clase: 'acciones' }, [
+        el('a', { clase: 'btn', href: ics, texto: 'iPhone / otro calendario' }),
+        el('a', { clase: 'btn secundario', href: google, target: '_blank', rel: 'noopener', texto: 'Google Calendar' })
+      ]),
+      el('p', { clase: 'nota', texto: 'iPhone y otros calendarios te avisan 1 día antes y 1 hora antes. En Google Calendar te avisa según tu configuración.' })
+    ]));
   }
 
   function reiniciarReserva() {
@@ -659,56 +732,67 @@
   $('btn-otra').addEventListener('click', reiniciarReserva);
 
   // ============================================================
-  // Cancelar
+  // Mi cita (enlace personal): ver, guardar en calendario, cancelar
   // ============================================================
-  function abrirCancelar() {
-    $('form-cancelar').hidden = false;
-    $('cancelacion-lista').hidden = true;
+  var miCita = null;
+
+  var ESTADOS_TEXTO = {
+    pendiente: 'Pendiente de confirmación', confirmada: 'Confirmada',
+    cancelada: 'Cancelada', completada: 'Completada', 'no-show': 'No asistió'
+  };
+
+  function abrirMiCita(ref) {
+    mostrarVista('cita');
+    $('cita-cargando').hidden = false;
+    $('cita-detalle').hidden = true;
+    $('cita-error').textContent = '';
+    llamar('obtenerMiCita', ref).then(function (cita) {
+      miCita = cita;
+      pintarMiCita();
+    }).catch(function (e) {
+      $('cita-cargando').hidden = true;
+      $('cita-error').textContent = e.message;
+    });
+  }
+
+  function pintarMiCita() {
+    var c = miCita;
+    $('cita-cargando').hidden = true;
+    $('cita-titulo').textContent = c.nombre ? 'Hola ' + c.nombre + ', esta es tu cita' : 'Tu cita';
+    var r = $('cita-resumen'); vaciar(r);
+    r.appendChild(filaResumen('Servicios', c.servicios.join(', ')));
+    r.appendChild(filaResumen('Día', fechaLarga(c.fecha)));
+    r.appendChild(filaResumen('Hora', hora12(c.inicio) + ' a ' + hora12(c.fin)));
+    r.appendChild(filaResumen('Total', colones(c.precio)));
+    $('cita-estado').textContent = ESTADOS_TEXTO[c.estado] || c.estado;
+    var activa = c.estado === 'pendiente' || c.estado === 'confirmada';
+    if (activa && c.cancelable) pintarCalendario($('calendario-cita'), c); else vaciar($('calendario-cita'));
+    $('cita-cancelar-zona').hidden = !c.cancelable;
     $('confirmar-cancelacion').hidden = true;
     $('acciones-cancelar').hidden = false;
-    $('error-cancelar').textContent = '';
-    mostrarVista('cancelar');
-    $('form-cancelar').querySelector('h2').focus();
+    $('cita-detalle').hidden = false;
   }
-  $('btn-ir-cancelar').addEventListener('click', abrirCancelar);
-  $('btn-volver-reservar').addEventListener('click', function () { mostrarVista('reservar'); });
-  $('btn-reservar-otra').addEventListener('click', reiniciarReserva);
 
-  $('form-cancelar').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var codigo = $('cancelar-codigo').value.trim().toUpperCase();
-    var tel = soloDigitos($('cancelar-telefono').value);
+  $('btn-pedir-cancelar').addEventListener('click', function () {
     $('error-cancelar').textContent = '';
-    if (codigo.length !== 6) { $('error-cancelar').textContent = 'El código tiene 6 caracteres.'; return; }
-    if (!/^\d{8}$/.test(tel)) { $('error-cancelar').textContent = 'El teléfono debe tener 8 dígitos.'; return; }
     $('acciones-cancelar').hidden = true;
     $('confirmar-cancelacion').hidden = false;
     $('btn-si-cancelar').focus();
   });
-
   $('btn-no-cancelar').addEventListener('click', function () {
     $('confirmar-cancelacion').hidden = true;
     $('acciones-cancelar').hidden = false;
   });
-
   $('btn-si-cancelar').addEventListener('click', function () {
     var boton = $('btn-si-cancelar');
     boton.disabled = true;
     boton.textContent = 'Cancelando…';
-    llamar('cancelarCita', {
-      codigo: $('cancelar-codigo').value.trim().toUpperCase(),
-      telefono: soloDigitos($('cancelar-telefono').value)
-    }).then(function (cita) {
-      var r = $('resumen-cancelada');
-      vaciar(r);
-      r.appendChild(filaResumen('Servicios', cita.servicios.join(', ')));
-      r.appendChild(filaResumen('Día', fechaLarga(cita.fecha)));
-      r.appendChild(filaResumen('Hora', hora12(cita.inicio)));
-      $('form-cancelar').hidden = true;
-      $('cancelacion-lista').hidden = false;
-      $('cancelar-codigo').value = '';
-      $('cancelar-telefono').value = '';
-      $('cancelacion-lista').querySelector('h2').focus();
+    llamar('cancelarCita', { ref: miCita.ref }).then(function () {
+      miCita.estado = 'cancelada';
+      miCita.cancelable = false;
+      pintarMiCita();
+      $('cita-titulo').textContent = 'Tu cita fue cancelada. Gracias por avisar.';
+      $('cita-titulo').focus();
     }).catch(function (e) {
       $('error-cancelar').textContent = e.message;
       $('confirmar-cancelacion').hidden = true;
@@ -717,6 +801,11 @@
       boton.disabled = false;
       boton.textContent = 'Sí, cancelar';
     });
+  });
+  $('btn-cita-reservar').addEventListener('click', function () {
+    history.replaceState(null, '', location.pathname);
+    mostrarVista('reservar');
+    if (estado.datos) pintarInicio(estado.datos);
   });
 
   // ============================================================
